@@ -8,6 +8,7 @@ set_target_properties(nvim_bin
   PROPERTIES
   EXPORT_COMPILE_COMMANDS ON
   ENABLE_EXPORTS TRUE
+  WINDOWS_EXPORT_ALL_SYMBOLS TRUE
   OUTPUT_NAME nvim)
 
 #-------------------------------------------------------------------------------
@@ -781,9 +782,39 @@ target_link_libraries(nvim_bin PRIVATE main_lib PUBLIC libuv)
 install_helper(TARGETS nvim_bin)
 if(MSVC)
   install(FILES $<TARGET_PDB_FILE:nvim_bin> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+  get_target_property(pending nvim_bin LINK_LIBRARIES)
+  set(visited)
+  set(archives)
+  while(pending)
+    list(POP_FRONT pending item)
+    if(item IN_LIST visited)
+      continue()
+    endif()
+    list(APPEND visited "${item}")
+    if(TARGET "${item}")
+      get_target_property(type "${item}" TYPE)
+      if(type STREQUAL "STATIC_LIBRARY" OR type STREQUAL "UNKNOWN_LIBRARY")
+        list(APPEND archives "$<TARGET_FILE:${item}>")
+      endif()
+      get_target_property(libraries "${item}" INTERFACE_LINK_LIBRARIES)
+      if(libraries)
+        list(APPEND pending ${libraries})
+      endif()
+    elseif(IS_ABSOLUTE "${item}")
+      list(APPEND archives "${item}")
+    endif()
+  endwhile()
+  set(exports "${CMAKE_CURRENT_BINARY_DIR}/dependencies.def")
+  set(generator "${PROJECT_SOURCE_DIR}/cmake/WindowsExportsGenerate.cmake")
+  add_custom_command(OUTPUT "${exports}"
+    COMMAND "${CMAKE_COMMAND}" "-DARCHIVER=${CMAKE_AR}" "-DARCHIVES=${archives}"
+      "-DOUTPUT=${exports}" -P "${generator}"
+    DEPENDS ${archives} "${generator}"
+    VERBATIM)
+  target_sources(nvim_bin PRIVATE "${exports}")
 endif()
 
-if(ENABLE_LTO)
+if(ENABLE_LTO AND NOT MSVC)
   include(CheckIPOSupported)
   check_ipo_supported(RESULT IPO_SUPPORTED)
   if(IPO_SUPPORTED)
