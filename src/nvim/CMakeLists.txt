@@ -111,6 +111,7 @@ endif()
 
 # Compiler specific options
 if(MSVC)
+  target_link_options(nvim_bin PRIVATE "/WHOLEARCHIVE:${LIBUV_LIBRARY}")
   target_compile_options(main_lib INTERFACE -W3)
 
   # Disable warnings that give too many false positives.

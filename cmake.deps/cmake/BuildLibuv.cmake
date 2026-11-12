@@ -2,6 +2,7 @@ get_externalproject_options(libuv ${DEPS_IGNORE_SHA})
 ExternalProject_Add(libuv
   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}/libuv
   CMAKE_ARGS ${DEPS_CMAKE_ARGS}
+    "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} $<$<BOOL:${MSVC}>:-DBUILDING_UV_SHARED>"
     -D CMAKE_INSTALL_LIBDIR=lib
     -D BUILD_TESTING=OFF
     -D LIBUV_BUILD_SHARED=OFF
